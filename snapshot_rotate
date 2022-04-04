@@ -1,0 +1,55 @@
+#!/usr/bin/env python
+"""Take and rotate snapshots on a btrfs file system
+
+Usage:
+    snapshot_rotate source target snap_name count [-r] [-q]
+ 
+    source:     path to make snapshot of
+    target:     snapshot directory
+    snap_name:  base name for snapshots, to be appended to date "+%F--%H-%M-%S"
+    count:      number of snapshots in the timestamp-@snap_name format to
+                keep at one time for a given snap_name.
+    [-r]:       create readonly snapshot
+    [-q]:       be quiet.
+"""
+
+from datetime import datetime
+from argparse import ArgumentParser
+import os.path
+from os import listdir
+from subprocess import run
+
+
+parser = ArgumentParser(description='Take and rotate snapshots on a btrfs file system')
+parser.add_argument('source', type=str, help='path to make snapshot of')
+parser.add_argument('target', type=str, help='snapshot directory')
+parser.add_argument('snap_name', type=str, help='base name for snapshots,to be appended to date')
+parser.add_argument('count', type=int, help='number of snapshots in the timestamp-@snap_name format\
+                    to keep at one time for a given snap_name.')
+parser.add_argument('-r', '--readonly', action='store_true', help='create readonly snapshot')
+parser.add_argument('-q', '--quiet', action='store_true', help='be quiet')
+
+snap_list = []
+date_format = '%Y-%m-%d--%H-%M-%S'
+current_date = datetime.today().strftime(date_format) + '-@'
+args = parser.parse_args()
+target_path = os.path.abspath(args.target)
+snap_path = os.path.join(target_path, current_date + args.snap_name)
+f = open('/dev/null', 'w') if args.quiet else None
+
+if args.readonly:
+    result = run(['btrfs', 'subvolume', 'snapshot', '-r', args.source, snap_path], stdout=f)
+else:
+    result = run(['btrfs', 'subvolume', 'snapshot', args.source, snap_path], stdout=f)
+
+for file in listdir(target_path):
+    if args.snap_name in file:
+        snap_list.append(file)
+snap_list.sort(reverse=True)
+n = len(snap_list) - args.count
+if n > 0:
+    for _ in range(n):
+        file = snap_list.pop()
+        result = run(['btrfs', 'subvolume', 'delete', os.path.join(target_path, file)], stdout=f)
+if f:
+    f.close()
