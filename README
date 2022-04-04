@@ -3,7 +3,7 @@ snapshot_rotate: Take and rotate snapshots on a btrfs file system
 Usage:
     snapshot_rotate source target snap_name count [-r] [-q]
 
-    source:     path to make snaphost of
+    source:     path to make snapshot of
     target:     snapshot directory
     snap_name:  Base name for snapshots, to be appended to date "+%F--%H-%M-%S"
     count:      Number of snapshots in the timestamp-@snap_name format to
